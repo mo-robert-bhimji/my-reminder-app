@@ -68,7 +68,6 @@ const generateSampleData = async () => {
   alert('Sample data generated!');
 };
 
-// HelpTooltip - no button background, tooltip BELOW icon
 const HelpTooltip = ({ text }: { text: string }) => {
   const [show, setShow] = useState(false);
 
@@ -92,7 +91,6 @@ const HelpTooltip = ({ text }: { text: string }) => {
   );
 };
 
-// Helper to adjust color brightness
 const adjustColorBrightness = (hex: string, factor: number) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -139,7 +137,6 @@ export default function Dashboard() {
     const total = logs.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-    // Calculate streaks
     const completedLogs = logs.filter(l => l.action === 'completed').sort((a, b) => b.timestamp - a.timestamp);
     let currentStreak = 0;
     let bestStreak = 0;
@@ -173,13 +170,11 @@ export default function Dashboard() {
     }
     bestStreak = Math.max(bestStreak, 1);
 
-    // Weekly average
     const oldestLog = logs.length > 0 ? new Date(Math.min(...logs.map(l => l.timestamp))) : new Date();
     const daysActive = Math.max(Math.floor((Date.now() - oldestLog.getTime()) / (1000 * 60 * 60 * 24)), 1);
     const weeksActive = Math.ceil(daysActive / 7);
     const weeklyAverage = (completed / weeksActive).toFixed(1);
 
-    // Consistency score
     const dailyCounts: { [key: string]: number } = {};
     logs.filter(l => l.action === 'completed').forEach(log => {
       const date = new Date(log.timestamp).toISOString().split('T')[0];
@@ -187,10 +182,10 @@ export default function Dashboard() {
     });
     
     const counts = Object.values(dailyCounts);
-    const mean = counts.reduce((a, b) => a + b, 0) / counts.length || 0;
-    const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length || 0;
+    const mean = counts.reduce((a, b) => a + b, 0) / (counts.length || 1);
+    const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (counts.length || 1);
     const stdDev = Math.sqrt(variance);
-    const consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (stdDev / mean) * 100)));
+    const consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (stdDev / (mean || 1)) * 100)));
 
     setStats({ 
       completed, 
@@ -208,7 +203,6 @@ export default function Dashboard() {
       { name: 'Dismissed', value: dismissed, color: '#dc2626' }
     ]);
 
-    // Category success rate WITH HORIZONTAL GRADIENTS
     const categoryStats = Object.keys(categories).map((catKey) => {
       const catCompleted = logs.filter(log => {
         const reminder = reminders.find(r => r.id === log.reminderId);
@@ -239,7 +233,6 @@ export default function Dashboard() {
 
     setCategoryData(categoryStats);
 
-    // Completion Trend - DYNAMIC BASED ON TIME RANGE
     const trendDataLocal: any[] = [];
     const now = new Date();
     let startDate = new Date();
@@ -253,8 +246,8 @@ export default function Dashboard() {
     } else if (timeRange === 'ytd') {
       startDate = new Date(now.getFullYear(), 0, 1);
     } else {
-      const oldestLog = logs.length > 0 ? new Date(Math.min(...logs.map(l => l.timestamp))) : new Date();
-      startDate = oldestLog;
+      const oldestLogDate = logs.length > 0 ? new Date(Math.min(...logs.map(l => l.timestamp))) : new Date();
+      startDate = oldestLogDate;
     }
 
     const diffTime = Math.abs(now.getTime() - startDate.getTime());
@@ -354,7 +347,6 @@ export default function Dashboard() {
     }
     setTrendData(trendDataLocal);
 
-    // Hourly activity
     const hourCounts: { [key: number]: number } = {};
     for (let i = 0; i < 24; i++) hourCounts[i] = 0;
     
@@ -369,7 +361,6 @@ export default function Dashboard() {
     }));
     setHourlyData(hourlyStats);
 
-    // Day of week analysis
     const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     const dayCounts: { [key: number]: { completed: number, total: number } } = {};
     for (let i = 1; i <= 7; i++) dayCounts[i] = { completed: 0, total: 0 };
@@ -397,7 +388,6 @@ export default function Dashboard() {
     });
     setDayOfWeekData(dayStats);
 
-    // Activity Heatmap
     const heatData: any[] = [];
     const endDate = new Date();
     const ninetyDaysAgo = new Date();
@@ -435,7 +425,6 @@ export default function Dashboard() {
     }
     setHeatmapData(heatData);
 
-    // Velocity
     const recentWeeks = trendDataLocal.slice(-4);
     const velocity = recentWeeks.length >= 2 ? 
       recentWeeks[recentWeeks.length - 1].completed - recentWeeks[0].completed : 0;
@@ -444,7 +433,6 @@ export default function Dashboard() {
       { label: 'Velocity', value: velocity, trend: velocity > 0 ? 'up' : velocity < 0 ? 'down' : 'stable' }
     ]);
 
-    // Weekly activity with gradient
     const weekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const weeklyLogs = logs.filter(l => l.timestamp >= weekAgo);
     const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -483,10 +471,7 @@ export default function Dashboard() {
   };
 
   const exportData = () => {
-    const logs = db.activityLogs.toArray();
-    const reminders = db.reminders.toArray();
-    
-    Promise.all([logs, reminders]).then(([logsData, remindersData]) => {
+    Promise.all([db.activityLogs.toArray(), db.reminders.toArray()]).then(([logsData, remindersData]) => {
       const headers = ['Date', 'Reminder Title', 'Action', 'Category', 'Scheduled Date'];
       const rows = logsData.map(log => {
         const reminder = remindersData.find(r => r.id === log.reminderId);
@@ -542,7 +527,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Core Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
           <div className="absolute top-3 right-3">
@@ -589,7 +573,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Streak & Velocity */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-orange-600 to-red-600 p-4 rounded-xl border border-orange-500 relative">
           <div className="absolute top-3 right-3">
@@ -618,7 +601,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Weekly Average */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Average number of reminders completed per week over your entire history" />
@@ -631,7 +613,6 @@ export default function Dashboard() {
         <p className="text-xs text-gray-400 mt-1">completions per week</p>
       </div>
 
-      {/* Completed vs Dismissed */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Visual breakdown of completed vs dismissed reminders" />
@@ -650,16 +631,16 @@ export default function Dashboard() {
                 dataKey="value"
                 labelLine={false}
                 label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
-  if (midAngle === undefined) return null;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-sm font-semibold">
-      {value}
-    </text>
-  );
-}}
+                  if (midAngle === undefined) return null;
+                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+                  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+                  return (
+                    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-sm font-semibold">
+                      {value}
+                    </text>
+                  );
+                }}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -671,7 +652,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Completion Trend with Time Range Buttons */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Your completion trend over time. Use buttons below to change the time range" />
@@ -692,62 +672,60 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
         
-{/* Time Range Buttons */}
-<div className="flex justify-center gap-1.5 mt-4 flex-wrap">
-  <button
-    onClick={() => setTimeRange('30d')}
-    style={{ 
-      backgroundColor: timeRange === '30d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
-      color: '#111827'
-    }}
-    className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
-  >
-    30 Days
-  </button>
-  <button
-    onClick={() => setTimeRange('90d')}
-    style={{ 
-      backgroundColor: timeRange === '90d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
-      color: '#111827'
-    }}
-    className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
-  >
-    3 Months
-  </button>
-  <button
-    onClick={() => setTimeRange('180d')}
-    style={{ 
-      backgroundColor: timeRange === '180d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
-      color: '#111827'
-    }}
-    className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
-  >
-    6 Months
-  </button>
-  <button
-    onClick={() => setTimeRange('ytd')}
-    style={{ 
-      backgroundColor: timeRange === 'ytd' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
-      color: '#111827'
-    }}
-    className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
-  >
-    This Year
-  </button>
-  <button
-    onClick={() => setTimeRange('all')}
-    style={{ 
-      backgroundColor: timeRange === 'all' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
-      color: '#111827'
-    }}
-    className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
-  >
-    All Time
-  </button>
-</div>
+        <div className="flex justify-center gap-1.5 mt-4 flex-wrap">
+          <button
+            onClick={() => setTimeRange('30d')}
+            style={{ 
+              backgroundColor: timeRange === '30d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
+              color: '#111827'
+            }}
+            className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
+          >
+            30 Days
+          </button>
+          <button
+            onClick={() => setTimeRange('90d')}
+            style={{ 
+              backgroundColor: timeRange === '90d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
+              color: '#111827'
+            }}
+            className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
+          >
+            3 Months
+          </button>
+          <button
+            onClick={() => setTimeRange('180d')}
+            style={{ 
+              backgroundColor: timeRange === '180d' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
+              color: '#111827'
+            }}
+            className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
+          >
+            6 Months
+          </button>
+          <button
+            onClick={() => setTimeRange('ytd')}
+            style={{ 
+              backgroundColor: timeRange === 'ytd' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
+              color: '#111827'
+            }}
+            className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
+          >
+            This Year
+          </button>
+          <button
+            onClick={() => setTimeRange('all')}
+            style={{ 
+              backgroundColor: timeRange === 'all' ? '#60a5fa' : 'rgba(96, 165, 250, 0.3)',
+              color: '#111827'
+            }}
+            className="px-2.5 py-1 rounded text-[10px] font-medium transition hover:bg-blue-400/50"
+          >
+            All Time
+          </button>
+        </div>
       </div>
 
-      {/* Category Success Rate */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Success rate by category. Gradient shows completion rate (light→dark)" />
@@ -759,8 +737,8 @@ export default function Dashboard() {
               <defs>
                 {categoryData.map((entry, index) => (
                   <linearGradient key={`gradient-${index}`} id={`categoryGradient-${index}`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor={entry.darkColor} />
-                    <stop offset="100%" stopColor={entry.lightColor} />
+                    <stop offset="0%" stopColor={entry.lightColor} />
+                    <stop offset="100%" stopColor={entry.darkColor} />
                   </linearGradient>
                 ))}
               </defs>
@@ -770,7 +748,7 @@ export default function Dashboard() {
                 cursor={{ fill: 'transparent' }}
                 contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                 itemStyle={{ color: '#fff' }}
-                formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Success Rate']}
+                formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Success Rate' as const]}
               />
               <Bar dataKey="rate" radius={[4, 4, 4, 4]}>
                 {categoryData.map((entry, index) => (
@@ -782,7 +760,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Day of Week Performance */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Your best performing days. Vertical gradient (light→dark purple)" />
@@ -793,8 +770,8 @@ export default function Dashboard() {
             <BarChart data={dayOfWeekData}>
               <defs>
                 <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6d28d9" />
-                  <stop offset="100%" stopColor="#a78bfa" />
+                  <stop offset="0%" stopColor="#a78bfa" />
+                  <stop offset="100%" stopColor="#6d28d9" />
                 </linearGradient>
               </defs>
               <XAxis dataKey="day" stroke="#9ca3af" />
@@ -810,7 +787,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Hourly Activity */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="What hours of the day you're most productive at completing reminders" />
@@ -832,7 +808,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Activity Heatmap */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="GitHub-style activity heatmap showing your daily completions over the last 90 days. Darker red = more completions" />
@@ -842,7 +817,7 @@ export default function Dashboard() {
           <div className="min-w-max">
             <div className="flex gap-1 mb-2">
               <div className="w-3"></div>
-              {['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+              {['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'].map((day) => (
                 <div key={day} className="w-3 text-xs text-gray-500 text-center flex-1">{day}</div>
               ))}
             </div>
@@ -880,7 +855,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Weekly Activity */}
       <div className="bg-gray-900 p-4 rounded-xl border border-gray-800 relative">
         <div className="absolute top-3 right-3">
           <HelpTooltip text="Activity for the current week. Darker blue means more completions that day" />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Save, Play } from 'lucide-react';
 import { addReminder } from '../../db/queries';
 import { categories } from '../../utils/categories';
+
 type CategoryKey = keyof typeof categories;
 
 interface ReminderFormProps {
@@ -10,7 +11,6 @@ interface ReminderFormProps {
   onSaved: () => void;
 }
 
-// Available notification tones
 const notificationTones = [
   { id: 1, name: 'Gentle Chime', frequency: 523.25, duration: 200 },
   { id: 2, name: 'Soft Bell', frequency: 659.25, duration: 300 },
@@ -33,7 +33,6 @@ export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormP
   const [repeatType, setRepeatType] = useState('none');
   const [advanceMin, setAdvanceMin] = useState(0);
   const [notificationTone, setNotificationTone] = useState(1);
-  const [playingTone, setPlayingTone] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
@@ -69,72 +68,25 @@ export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormP
     const tone = notificationTones.find(t => t.id === toneId);
     if (!tone) return;
 
-    // Stop any currently playing tone
-    if (playingTone) {
-      window.stopTone?.();
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.value = tone.frequency;
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + tone.duration / 1000);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + tone.duration / 1000);
+    } catch (e) {
+      console.log('Audio playback not supported');
     }
-
-    // Create and play new tone
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = tone.frequency;
-    oscillator.type = 'sine';
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + tone.duration / 1000);
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + tone.duration / 1000);
-
-    setPlayingTone(toneId);
-     const playTone = (toneId: number) => {
-    const tone = notificationTones.find(t => t.id === toneId);
-    if (!tone) return;
-
-    // Stop any currently playing tone
-    if (playingTone) {
-      try {
-        (window as any).currentOscillator?.stop();
-      } catch (e) {
-        // Ignore if already stopped
-      }
-    }
-
-    // Create and play new tone
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = tone.frequency;
-    oscillator.type = 'sine';
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + tone.duration / 1000);
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + tone.duration / 1000);
-
-    // Store reference to stop later
-    (window as any).currentOscillator = oscillator;
-
-    setPlayingTone(toneId);
-
-    setTimeout(() => {
-      setPlayingTone(null);
-      (window as any).currentOscillator = null;
-    }, tone.duration);
-  };
-
-
-    setTimeout(() => setPlayingTone(null), tone.duration);
   };
 
   return (
@@ -171,7 +123,7 @@ export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormP
             />
           </div>
 
-                    <div>
+          <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
             <div className="grid grid-cols-4 gap-2">
               {(Object.keys(categories) as CategoryKey[]).map((key) => (
@@ -247,7 +199,7 @@ export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormP
             </select>
           </div>
 
-           <div>
+          <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Notification Tone</label>
             <div className="flex gap-2">
               <select
