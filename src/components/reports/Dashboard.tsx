@@ -751,10 +751,10 @@ export default function Dashboard() {
                 formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Success Rate' as const]}
               />
               <Bar dataKey="rate" radius={[4, 4, 4, 4]}>
-                {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={`url(#categoryGradient-${index})`} />
-                ))}
-              </Bar>
+  {categoryData.map((_, index) => (
+    <Cell key={`cell-${index}`} fill={`url(#categoryGradient-${index})`} />
+  ))}
+</Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

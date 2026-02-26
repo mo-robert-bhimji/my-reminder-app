@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { db } from './db/schema';
-import { getUpcomingReminders, getCompletedToday } from './db/queries';
 import ReminderCard from './components/reminders/ReminderCard';
 import ReminderForm from './components/reminders/ReminderForm';
 import Dashboard from './components/reports/Dashboard';
@@ -17,18 +16,32 @@ export default function App() {
   }, []);
 
   const loadReminders = async () => {
-    const upcoming = await getUpcomingReminders();
-    const completed = await getCompletedToday();
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    
+    // Get upcoming reminders directly from db
+    const allReminders = await db.reminders.where('isActive').equals(1).toArray();
+    const upcoming = allReminders.filter(r => {
+      const reminderDate = new Date(`${r.scheduledDate} ${r.scheduledTime}`);
+      return reminderDate >= now;
+    });
+    
+    // Get completed today directly from db
+    const allLogs = await db.activityLogs.toArray();
+    const completed = allLogs.filter(l => {
+      const logDate = new Date(l.timestamp).toISOString().split('T')[0];
+      return logDate === today && l.action === 'completed';
+    });
     
     // Sort by scheduled date/time
-    const sorted = upcoming.sort((a, b) => {
+    const sorted = upcoming.sort((a: any, b: any) => {
       const dateA = new Date(`${a.scheduledDate} ${a.scheduledTime}`).getTime();
       const dateB = new Date(`${b.scheduledDate} ${b.scheduledTime}`).getTime();
       return dateA - dateB;
     });
     
     setReminders(sorted);
-    setCompletedToday(completed);
+    setCompletedToday(completed.length);
   };
 
   const handleReminderSaved = () => {
@@ -37,7 +50,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
       <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -51,15 +63,11 @@ export default function App() {
               New
             </button>
           </div>
-
-          {/* Tabs */}
           <div className="flex gap-1 mt-4 bg-gray-800 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('reminders')}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
-                activeTab === 'reminders'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                activeTab === 'reminders' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
               Reminders
@@ -67,9 +75,7 @@ export default function App() {
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
-                activeTab === 'dashboard'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+                activeTab === 'dashboard' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
               }`}
             >
               Dashboard
@@ -78,11 +84,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === 'reminders' ? (
           <div className="space-y-4">
-            {/* Today's Progress */}
             <div className="bg-gray-900 p-4 rounded-xl border border-gray-800">
               <div className="flex justify-between items-center">
                 <div>
@@ -95,8 +99,6 @@ export default function App() {
                 </div>
               </div>
             </div>
-
-            {/* Reminders List */}
             {reminders.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <p className="text-lg">No upcoming reminders</p>
@@ -105,11 +107,7 @@ export default function App() {
             ) : (
               <div className="space-y-3">
                 {reminders.map((reminder) => (
-                  <ReminderCard
-                    key={reminder.id}
-                    reminder={reminder}
-                    onUpdated={loadReminders}
-                  />
+                  <ReminderCard key={reminder.id} reminder={reminder} />
                 ))}
               </div>
             )}
@@ -119,7 +117,6 @@ export default function App() {
         )}
       </main>
 
-      {/* New Reminder Form Modal */}
       <ReminderForm
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
