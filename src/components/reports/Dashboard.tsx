@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { db } from '../../db/schema';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { CheckCircle, XCircle, Clock, TrendingUp, RefreshCw, Award, Calendar, Activity, HelpCircle, Download } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, RefreshCw, Award, Calendar, Activity, HelpCircle, Download } from 'lucide-react';
 import { categories } from '../../utils/categories';
 
 const generateSampleData = async () => {
@@ -650,15 +650,16 @@ export default function Dashboard() {
                 dataKey="value"
                 labelLine={false}
                 label={({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
-                  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-                  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-                  return (
-                    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-sm font-semibold">
-                      {value}
-                    </text>
-                  );
-                }}
+  if (midAngle === undefined) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+  const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" className="text-sm font-semibold">
+      {value}
+    </text>
+  );
+}}
               >
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -769,7 +770,7 @@ export default function Dashboard() {
                 cursor={{ fill: 'transparent' }}
                 contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
                 itemStyle={{ color: '#fff' }}
-                formatter={(value: number) => [`${value}%`, 'Success Rate']}
+                formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Success Rate']}
               />
               <Bar dataKey="rate" radius={[4, 4, 4, 4]}>
                 {categoryData.map((entry, index) => (

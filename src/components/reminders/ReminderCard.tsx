@@ -1,5 +1,4 @@
 import { categories } from '../../utils/categories';
-type CategoryKey = keyof typeof categories;
 
 interface ReminderCardProps {
   reminder: any;

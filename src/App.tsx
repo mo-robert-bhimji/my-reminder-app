@@ -1,119 +1,130 @@
-import { useEffect, useState } from 'react';
-import { Plus, BarChart3 } from 'lucide-react';
-import { getAllReminders } from './db/queries';
-import ReminderForm from './components/reminders/ReminderForm.tsx';
-import ReminderCard from './components/reminders/ReminderCard.tsx';
-import ReminderDetail from './components/reminders/ReminderDetail.tsx';
-import Dashboard from './components/reports/Dashboard.tsx';
+import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
+import { db } from './db/schema';
+import { getUpcomingReminders, getCompletedToday } from './db/queries';
+import ReminderCard from './components/reminders/ReminderCard';
+import ReminderForm from './components/reminders/ReminderForm';
+import Dashboard from './components/reports/Dashboard';
 
-function App() {
-  const [reminders, setReminders] = useState<any[]>([]);
+export default function App() {
+  const [activeTab, setActiveTab] = useState<'reminders' | 'dashboard'>('reminders');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedReminderId, setSelectedReminderId] = useState<number | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'reminders' | 'dashboard'>('reminders');
-
-  const loadReminders = async () => {
-    const data = await getAllReminders();
-    const sorted = data.sort((a, b) => {
-      return new Date(`${a.scheduledDate} ${a.scheduledTime}`).getTime() - 
-             new Date(`${b.scheduledDate} ${b.scheduledTime}`).getTime();
-    });
-    setReminders(sorted);
-  };
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [completedToday, setCompletedToday] = useState(0);
 
   useEffect(() => {
     loadReminders();
   }, []);
 
-  const handleCardClick = (id: number) => {
-    setSelectedReminderId(id);
-    setIsDetailOpen(true);
+  const loadReminders = async () => {
+    const upcoming = await getUpcomingReminders();
+    const completed = await getCompletedToday();
+    
+    // Sort by scheduled date/time
+    const sorted = upcoming.sort((a, b) => {
+      const dateA = new Date(`${a.scheduledDate} ${a.scheduledTime}`).getTime();
+      const dateB = new Date(`${b.scheduledDate} ${b.scheduledTime}`).getTime();
+      return dateA - dateB;
+    });
+    
+    setReminders(sorted);
+    setCompletedToday(completed);
+  };
+
+  const handleReminderSaved = () => {
+    loadReminders();
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 pb-20">
-      <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-white">
-            {currentTab === 'reminders' ? 'Reminders' : 'Dashboard'}
-          </h1>
-          <p className="text-sm text-gray-400">
-            {currentTab === 'reminders' ? `${reminders.length} active reminders` : 'Your activity overview'}
-          </p>
-        </div>
+    <div className="min-h-screen bg-gray-950 text-white">
+      {/* Header */}
+      <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-bold">Reminder</h1>
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              style={{ backgroundColor: '#2563eb', color: 'white' }}
+            >
+              <Plus className="w-4 h-4" />
+              New
+            </button>
+          </div>
 
-<div className="flex border-t border-gray-800">
-  <button
-    onClick={() => setCurrentTab('reminders')}
-    className={`flex-1 py-3 text-sm font-medium ${
-      currentTab === 'reminders' 
-        ? 'text-blue-400 border-b-2 border-blue-500' 
-        : 'text-gray-400'
-    }`}
-  >
-    Reminders
-  </button>
-  <button
-    onClick={() => setCurrentTab('dashboard')}
-    className={`flex-1 py-3 text-sm font-medium ${
-      currentTab === 'dashboard' 
-        ? 'text-blue-400 border-b-2 border-blue-500' 
-        : 'text-gray-400'
-    }`}
-  >
-    Dashboard
-  </button>
-</div>
+          {/* Tabs */}
+          <div className="flex gap-1 mt-4 bg-gray-800 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('reminders')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                activeTab === 'reminders'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Reminders
+            </button>
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                activeTab === 'dashboard'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Dashboard
+            </button>
+          </div>
+        </div>
       </header>
 
-      {currentTab === 'reminders' ? (
-        <main className="max-w-md mx-auto px-4 py-6 space-y-4">
-          {reminders.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No reminders yet</p>
-              <p className="text-sm text-gray-500">Tap + to create one</p>
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        {activeTab === 'reminders' ? (
+          <div className="space-y-4">
+            {/* Today's Progress */}
+            <div className="bg-gray-900 p-4 rounded-xl border border-gray-800">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-gray-400">Completed Today</p>
+                  <p className="text-2xl font-bold text-white">{completedToday}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-400">Upcoming</p>
+                  <p className="text-2xl font-bold text-white">{reminders.length}</p>
+                </div>
+              </div>
             </div>
-          ) : (
-            reminders.map((reminder) => (
-              <ReminderCard 
-                key={reminder.id} 
-                reminder={reminder} 
-                onClick={() => handleCardClick(reminder.id)}
-              />
-            ))
-          )}
-        </main>
-      ) : (
-        <main className="max-w-md mx-auto">
+
+            {/* Reminders List */}
+            {reminders.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p className="text-lg">No upcoming reminders</p>
+                <p className="text-sm mt-1">Tap "New" to create your first reminder!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reminders.map((reminder) => (
+                  <ReminderCard
+                    key={reminder.id}
+                    reminder={reminder}
+                    onUpdated={loadReminders}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
           <Dashboard />
-        </main>
-      )}
+        )}
+      </main>
 
-      {currentTab === 'reminders' && (
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition active:scale-95"
-          style={{ backgroundColor: '#2563eb' }}
-        >
-          <Plus className="w-8 h-8" />
-        </button>
-      )}
-
-      <ReminderForm 
-        isOpen={isFormOpen} 
+      {/* New Reminder Form Modal */}
+      <ReminderForm
+        isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
-        onSaved={loadReminders}
-      />
-
-      <ReminderDetail
-        reminderId={selectedReminderId}
-        isOpen={isDetailOpen}
-        onClose={() => { setIsDetailOpen(false); setSelectedReminderId(null); }}
-        onUpdated={loadReminders}
+        onSaved={handleReminderSaved}
       />
     </div>
-  )
+  );
 }
-
-export default App

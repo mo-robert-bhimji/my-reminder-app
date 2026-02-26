@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Save, Play, Pause } from 'lucide-react';
+import { X, Save, Play } from 'lucide-react';
 import { addReminder } from '../../db/queries';
 import { categories } from '../../utils/categories';
 type CategoryKey = keyof typeof categories;
@@ -92,7 +92,47 @@ export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormP
     oscillator.stop(audioContext.currentTime + tone.duration / 1000);
 
     setPlayingTone(toneId);
-    (window as any).stopTone = () => setPlayingTone(null);
+     const playTone = (toneId: number) => {
+    const tone = notificationTones.find(t => t.id === toneId);
+    if (!tone) return;
+
+    // Stop any currently playing tone
+    if (playingTone) {
+      try {
+        (window as any).currentOscillator?.stop();
+      } catch (e) {
+        // Ignore if already stopped
+      }
+    }
+
+    // Create and play new tone
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = tone.frequency;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + tone.duration / 1000);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + tone.duration / 1000);
+
+    // Store reference to stop later
+    (window as any).currentOscillator = oscillator;
+
+    setPlayingTone(toneId);
+
+    setTimeout(() => {
+      setPlayingTone(null);
+      (window as any).currentOscillator = null;
+    }, tone.duration);
+  };
+
 
     setTimeout(() => setPlayingTone(null), tone.duration);
   };
