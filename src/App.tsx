@@ -54,6 +54,11 @@ export default function App() {
     loadReminders();
   };
 
+  const handleCardClick = (reminderId: number) => {
+    console.log('Reminder clicked:', reminderId);
+    // Add your click handling logic here
+  };
+
   if (showDashboard) {
     return (
       <div className="min-h-screen bg-gray-950 text-white">
@@ -65,7 +70,7 @@ export default function App() {
             >
               ← Back
             </button>
-            <h1 className="text-xl font-bold">Analytics Dashboard</h1>
+            <h1 className="text-lg font-semibold">Analytics Dashboard</h1>
             <div className="w-16"></div>
           </div>
         </header>
@@ -119,7 +124,11 @@ export default function App() {
         ) : (
           <div className="space-y-3">
             {reminders.map((reminder) => (
-              <ReminderCard key={reminder.id} reminder={reminder} />
+              <ReminderCard 
+                key={reminder.id} 
+                reminder={reminder}
+                onClick={() => handleCardClick(reminder.id)}
+              />
             ))}
           </div>
         )}
