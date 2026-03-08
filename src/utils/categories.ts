@@ -1,54 +1,48 @@
+// ============================================================================
+// CATEGORIES.TSX - Category Definitions for Reminders
+// ============================================================================
+
 export const categories = {
   health: {
+    icon: '🏃',
     label: 'Health',
-    color: '#10b981',
-    bgColor: 'bg-emerald-500',
-    icon: '🏥'
+    color: '#ec4899'  // Pink - represents vitality, energy
   },
   work: {
+    icon: '💼',
     label: 'Work',
-    color: '#3b82f6',
-    bgColor: 'bg-blue-500',
-    icon: '💼'
+    color: '#3b82f6'  // Blue - professional, trustworthy
   },
   personal: {
+    icon: '📚',
     label: 'Personal',
-    color: '#8b5cf6',
-    bgColor: 'bg-violet-500',
-    icon: '👤'
-  },
-  family: {
-    label: 'Family',
-    color: '#ec4899',
-    bgColor: 'bg-pink-500',
-    icon: '👨‍👩‍👧‍👦'
-  },
-  finance: {
-    label: 'Finance',
-    color: '#f59e0b',
-    bgColor: 'bg-amber-500',
-    icon: '💰'
+    color: '#8b5cf6'  // Violet - personal growth
   },
   home: {
+    icon: '🏠',
     label: 'Home',
-    color: '#f97316',
-    bgColor: 'bg-orange-500',
-    icon: '🏠'
+    color: '#f97316'  // Orange - warmth, comfort
   },
-  education: {
-    label: 'Education',
-    color: '#6366f1',
-    bgColor: 'bg-indigo-500',
-    icon: '📚'
+  finance: {
+    icon: '💰',
+    label: 'Finance',
+    color: '#10b981'  // Emerald - money, growth
   },
   social: {
+    icon: '👥',
     label: 'Social',
-    color: '#06b6d4',
-    bgColor: 'bg-cyan-500',
-    icon: '👥'
+    color: '#6366f1'  // Indigo - connection, community
+  },
+  learning: {
+    icon: '🎓',
+    label: 'Learning',
+    color: '#14b8a6'  // Teal - knowledge, clarity
+  },
+  other: {
+    icon: '📌',
+    label: 'Other',
+    color: '#6b7280'  // Gray - neutral
   }
-} as const;
+};
 
 export type CategoryKey = keyof typeof categories;
-
-export type Category = typeof categories[CategoryKey];

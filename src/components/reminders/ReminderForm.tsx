@@ -1,235 +1,240 @@
-import { useState } from 'react';
-import { X, Save, Play } from 'lucide-react';
-import { addReminder } from '../../db/queries';
-import { categories } from '../../utils/categories';
+// ============================================================================
+// REMINDERFORM.TSX - New/Edit Reminder Form Modal
+// ============================================================================
 
-type CategoryKey = keyof typeof categories;
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { db } from '../../db/schema';
+import { categories, type CategoryKey } from '../../utils/categories';
 
 interface ReminderFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  preFillDate?: string | null;
+  editingReminder?: any | null;
 }
 
-const notificationTones = [
-  { id: 1, name: 'Gentle Chime', frequency: 523.25, duration: 200 },
-  { id: 2, name: 'Soft Bell', frequency: 659.25, duration: 300 },
-  { id: 3, name: 'Digital Beep', frequency: 880, duration: 150 },
-  { id: 4, name: 'Warm Tone', frequency: 440, duration: 250 },
-  { id: 5, name: 'Crystal Clear', frequency: 1046.50, duration: 200 },
-  { id: 6, name: 'Deep Resonance', frequency: 261.63, duration: 350 },
-  { id: 7, name: 'Bright Alert', frequency: 783.99, duration: 180 },
-  { id: 8, name: 'Calm Pulse', frequency: 349.23, duration: 280 },
-  { id: 9, name: 'Sharp Notice', frequency: 1174.66, duration: 120 },
-  { id: 10, name: 'Melodic Ring', frequency: 587.33, duration: 320 }
-];
-
-export default function ReminderForm({ isOpen, onClose, onSaved }: ReminderFormProps) {
+export default function ReminderForm({ isOpen, onClose, onSaved, preFillDate, editingReminder }: ReminderFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<CategoryKey>('personal');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState('12:00');
-  const [repeatType, setRepeatType] = useState('none');
-  const [advanceMin, setAdvanceMin] = useState(0);
-  const [notificationTone, setNotificationTone] = useState(1);
+  const [category, setCategory] = useState<CategoryKey>('other');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return alert('Title is required');
-
-    try {
-      await addReminder({
-        title,
-        description,
-        category,
-        scheduledDate: date,
-        scheduledTime: time,
-        repeatType,
-        advanceReminderMin: advanceMin,
-        isActive: true,
-        createdAt: Date.now()
-      });
-      
+  // ============================================================================
+  // EFFECT: Pre-fill form when editing or adding for specific date
+  // ============================================================================
+  useEffect(() => {
+    if (editingReminder) {
+      // Edit mode - pre-fill with existing data
+      setTitle(editingReminder.title || '');
+      setDescription(editingReminder.description || '');
+      setCategory((editingReminder.category as CategoryKey) || 'other');
+      setScheduledDate(editingReminder.scheduledDate || '');
+      setScheduledTime(editingReminder.scheduledTime || '');
+    } else if (preFillDate) {
+      // New reminder for specific date
       setTitle('');
       setDescription('');
-      setCategory('personal');
+      setCategory('other');
+      setScheduledDate(preFillDate);
+      setScheduledTime('09:00');
+    } else {
+      // New reminder (default)
+      setTitle('');
+      setDescription('');
+      setCategory('other');
+      setScheduledDate(new Date().toISOString().split('T')[0]);
+      setScheduledTime('09:00');
+    }
+  }, [editingReminder, preFillDate, isOpen]);
+
+  // ============================================================================
+  // FUNCTION: Handle Form Submission
+  // ============================================================================
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!title.trim()) {
+      alert('Please enter a title for your reminder');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      if (editingReminder) {
+        // UPDATE existing reminder
+        await db.reminders.update(editingReminder.id, {
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          scheduledDate,
+          scheduledTime,
+          updatedAt: new Date().toISOString()
+        });
+        console.log('✅ Reminder updated');
+      } else {
+        // CREATE new reminder
+        await db.reminders.add({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          scheduledDate,
+          scheduledTime,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        console.log('✅ Reminder created');
+      }
+
       onSaved();
       onClose();
     } catch (error) {
-      console.error(error);
-      alert('Failed to save reminder');
+      console.error('❌ Error saving reminder:', error);
+      alert('Failed to save reminder. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const playTone = (toneId: number) => {
-    const tone = notificationTones.find(t => t.id === toneId);
-    if (!tone) return;
-
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = tone.frequency;
-      oscillator.type = 'sine';
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + tone.duration / 1000);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + tone.duration / 1000);
-    } catch (e) {
-      console.log('Audio playback not supported');
-    }
-  };
+  // ============================================================================
+  // RENDER: Modal
+  // ============================================================================
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-gray-900 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto border border-gray-800">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-white">New Reminder</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full">
-            <X className="w-6 h-6 text-gray-400" />
+    <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center z-50">
+      <div className="bg-gray-900 rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
+          <h2 className="text-xl font-bold text-white">
+            {editingReminder ? 'Edit Reminder' : 'New Reminder'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-800 rounded-full transition"
+          >
+            <X className="w-5 h-5 text-gray-400" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          
+          {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Title</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Title *
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., Take medicine"
+              placeholder="What do you want to remember?"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
               required
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
+              placeholder="Add details (optional)"
               rows={3}
-              placeholder="Optional details..."
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none"
             />
           </div>
 
+          {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              Category
+            </label>
             <div className="grid grid-cols-4 gap-2">
-              {(Object.keys(categories) as CategoryKey[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setCategory(key)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: category === key ? '2px solid white' : '2px solid #374151',
-                    color: '#9ca3af'
-                  }}
-                  className="p-3 rounded-lg transition hover:border-gray-500"
-                >
-                  <div className="text-2xl mb-1">{categories[key].icon}</div>
-                  <div className="text-xs text-gray-300">{categories[key].label}</div>
-                </button>
-              ))}
+              {(Object.keys(categories) as CategoryKey[]).map((key) => {
+                const cat = categories[key];
+                const isSelected = category === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCategory(key)}
+                    className={`p-3 rounded-lg border transition flex flex-col items-center gap-1 ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-500/20'
+                        : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                    }`}
+                    style={{
+                      borderColor: isSelected ? cat.color : undefined,
+                      backgroundColor: isSelected ? `${cat.color}30` : undefined
+                    }}
+                  >
+                    <span className="text-xl">{cat.icon}</span>
+                    <span className="text-xs text-gray-400">{cat.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* Date & Time */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Date</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Date *
+              </label>
               <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                value={scheduledDate}
+                onChange={(e) => setScheduledDate(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Time</label>
+              <label className="block text-sm font-medium text-gray-400 mb-1">
+                Time *
+              </label>
               <input
                 type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Repeat</label>
-            <select
-              value={repeatType}
-              onChange={(e) => setRepeatType(e.target.value)}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="none">Once</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Advance Reminder</label>
-            <select
-              value={advanceMin}
-              onChange={(e) => setAdvanceMin(Number(e.target.value))}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={0}>No advance notification</option>
-              <option value={5}>5 minutes before</option>
-              <option value={15}>15 minutes before</option>
-              <option value={30}>30 minutes before</option>
-              <option value={60}>1 hour before</option>
-              <option value={1440}>1 day before</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Notification Tone</label>
-            <div className="flex gap-2">
-              <select
-                value={notificationTone}
-                onChange={(e) => setNotificationTone(Number(e.target.value))}
-                className="flex-1 p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-              >
-                {notificationTones.map((tone) => (
-                  <option key={tone.id} value={tone.id}>
-                    {tone.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => playTone(notificationTone)}
-                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center"
-              >
-                <Play className="w-5 h-5" />
-              </button>
+          {/* Warning for Past Dates */}
+          {scheduledDate && scheduledTime && (
+            <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+              <p className="text-xs text-yellow-500">
+                ⚠️ Reminders can only be edited if they are scheduled for the future.
+              </p>
             </div>
-          </div>
+          )}
 
+          {/* Submit Button - Blue Gradient */}
           <button
             type="submit"
-            className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#2563eb', color: 'white' }}
+            disabled={isSaving}
+            className="w-full py-3 rounded-lg font-medium transition text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.3)'
+            }}
           >
-            <Save className="w-5 h-5" />
-            Save Reminder
+            {isSaving ? 'Saving...' : (editingReminder ? 'Update Reminder' : 'Create Reminder')}
           </button>
         </form>
       </div>
